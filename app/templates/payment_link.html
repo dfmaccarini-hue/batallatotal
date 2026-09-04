@@ -1,0 +1,12 @@
+<h1>Pago de Puja</h1>
+<p>Monto: ${{ amount }}</p>
+<h2>Pagar puja de {{ amount }} ARS</h2>
+
+<form method="POST" action="/process_payment/{{ project_id }}">
+    <label for="payment_type">Selecciona el método de pago:</label>
+    <select name="payment_type" id="payment_type">
+        <option value="link">Link de pago</option>
+        <option value="qr">QR de pago</option>
+    </select>
+    <button type="submit">Continuar</button>
+</form>

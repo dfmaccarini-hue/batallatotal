@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Leaderboard Outbid LATAM</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <h1>Leaderboard Outbid LATAM</h1>
+
+    <!-- Formulario para agregar proyecto -->
+    <h2>Agregar Proyecto</h2>
+    <form method="POST">
+        <label>Nombre:</label>
+        <input type="text" name="name" required><br><br>
+
+        <label>Descripción:</label>
+        <textarea name="description"></textarea><br><br>
+
+        <label>Categoría:</label>
+        <select name="category" required>
+            <option value="">-- Selecciona una categoría --</option>
+            <option value="Energía">Energía</option>
+            <option value="Tecnología">Tecnología</option>
+            <option value="Salud">Salud</option>
+            <option value="Educación">Educación</option>
+            <option value="Transporte">Transporte</option>
+            <option value="Otros">Otros</option>
+        </select><br><br>
+
+        <label>Puja inicial:</label>
+        <input type="number" name="initial_bid" step="0.01"><br><br>
+
+        <button type="submit">Guardar Proyecto</button>
+    </form>
+
+    <hr>
+
+    <!-- Barra de categorías -->
+    <h2>Categorías</h2>
+    <div class="categories-bar">
+        <a href="{{ url_for('leaderboard.index') }}" class="{% if not selected_category %}active{% endif %}">Todas</a>
+        {% for cat in categories %}
+            <a href="{{ url_for('leaderboard.index', category=cat) }}" class="{% if selected_category == cat %}active{% endif %}">
+                {{ cat }}
+            </a>
+        {% endfor %}
+    </div>
+
+    <hr>
+
+    <!-- Ranking estilo tabla -->
+    {% if projects %}
+        <table>
+            <tr>
+                <th>Posición</th>
+                <th>Proyecto</th>
+                <th>Categoría</th>
+                <th>Descripción</th>
+                <th>Puja más alta</th>
+                <th>Agregar Puja</th>
+            </tr>
+            {% for project, max_bid in projects %}
+            <tr>
+                <td>
+                    {% if loop.index == 1 %}
+                        🏆 {{ loop.index }}
+                    {% else %}
+                        {{ loop.index }}
+                    {% endif %}
+                </td>
+                <td><strong>{{ project.name }}</strong></td>
+                <td>{{ project.category }}</td>
+                <td>{{ project.description }}</td>
+                <td>
+                    {% if max_bid %}
+                        {{ max_bid }}
+                    {% else %}
+                        Sin pujas
+                    {% endif %}
+                </td>
+                <td>
+                    <!-- IMPORTANTE: usar 'leaderboard.add_bid' -->
+                    <form method="POST" action="{{ url_for('leaderboard.payment', project_id=project.id) }}">
+                        <input type="number" name="amount" step="0.01" required>
+                        <button type="submit">Agregar Puja</button>
+                    </form>
+                    
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+    {% else %}
+        <p>Aún no hay proyectos en el ranking.</p>
+    {% endif %}
+</body>
+</html>

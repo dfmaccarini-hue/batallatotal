@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Pago de Puja</title>
+    <style>
+        .container {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 20px;
+        }
+        .option {
+            border: 1px solid #ccc;
+            padding: 20px;
+            width: 40%;
+            text-align: center;
+            border-radius: 8px;
+            background-color: #f9f9f9;
+        }
+        h2 {
+            text-align: center;
+        }
+        a {
+            display: inline-block;
+            margin-top: 10px;
+            padding: 10px 15px;
+            background-color: #0077cc;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+        a:hover {
+            background-color: #005fa3;
+        }
+        img {
+            max-width: 200px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h2>Pagar puja de {{ amount }} ARS</h2>
+
+    <div class="container">
+        <div class="option">
+            <h3>Opción 1: Link de pago</h3>
+            <p>Podés pagar directamente en Mercado Pago:</p>
+            <a href="{{ payment_url }}" target="_blank">Ir a Mercado Pago</a>
+        </div>
+
+        {% if qr_base64 %}
+        <div class="option">
+            <h3>Opción 2: QR de pago</h3>
+            <p>Escaneá este QR con la app de Mercado Pago:</p>
+            <img src="data:image/png;base64,{{ qr_base64 }}" alt="QR de pago">
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>
+

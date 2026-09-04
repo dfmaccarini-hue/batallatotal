@@ -1,0 +1,7 @@
+Flask
+Flask-Login
+Flask-Migrate
+SQLAlchemy
+psycopg2-binary
+gunicorn
+mercadopago

@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>QR de Pago</title>
+</head>
+<body>
+    <h1>Escaneá el QR para pagar tu puja</h1>
+    <p>Monto: ${{ amount }}</p>
+    <img src="data:image/png;base64,{{ qr_code }}" alt="QR de pago">
+    <br><br>
+    <a href="{{ url_for('leaderboard.index') }}">Volver al leaderboard</a>
+</body>
+</html>
