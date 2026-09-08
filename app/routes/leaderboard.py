@@ -19,41 +19,67 @@ else:
     NOTIFICATION_URL = "https://batallatotal.onrender.com/mp_notifications"
 
 
-@leaderboard_bp.route("/", methods=["POST"])
+@leaderboard_bp.route("/", methods=["GET", "POST"])
 def index():
-    name = request.form["name"]
-    description = request.form["description"]
-    category = request.form["category"]
-    initial_bid = request.form.get("initial_bid")
+    if request.method == "POST":
+        name = request.form["name"]
+        description = request.form["description"]
+        category = request.form["category"]
+        initial_bid = request.form.get("initial_bid")
 
-    # Empaquetar datos del proyecto en external_reference
-    external_ref = f"{name}|{description}|{category}"
+        # Empaquetar datos del proyecto en external_reference
+        external_ref = f"{name}|{description}|{category}"
 
-    preference_data = {
-        "items": [
-            {
-                "title": f"Proyecto {name}",
-                "quantity": 1,
-                "currency_id": "ARS",
-                "unit_price": float(initial_bid),
-            }
-        ],
-        "external_reference": external_ref,
-        "notification_url": NOTIFICATION_URL,
-        "back_urls": {
-            "success": "https://batallatotal.onrender.com/success",
-            "failure": "https://batallatotal.onrender.com/failure",
-            "pending": "https://batallatotal.onrender.com/pending"
-        },
-        "auto_return": "approved"
-    }
+        preference_data = {
+            "items": [
+                {
+                    "title": f"Proyecto {name}",
+                    "quantity": 1,
+                    "currency_id": "ARS",
+                    "unit_price": float(initial_bid),
+                }
+            ],
+            "external_reference": external_ref,
+            "notification_url": NOTIFICATION_URL,
+            "back_urls": {
+                "success": "https://batallatotal.onrender.com/success",
+                "failure": "https://batallatotal.onrender.com/failure",
+                "pending": "https://batallatotal.onrender.com/pending"
+            },
+            "auto_return": "approved"
+        }
 
-    preference_response = sdk.preference().create(preference_data)
-    preference = preference_response["response"]
+        preference_response = sdk.preference().create(preference_data)
+        preference = preference_response["response"]
 
-    payment_url = preference.get("init_point")
+        payment_url = preference.get("init_point")
 
-    return render_template("payment_page.html", amount=initial_bid, payment_url=payment_url)
+        return render_template("payment_page.html", amount=initial_bid, payment_url=payment_url)
+
+    # Caso GET: mostrar leaderboard
+    selected_category = request.args.get("category")
+
+    query = (
+        db.session.query(Project, func.max(Bid.amount).label("max_bid"))
+        .outerjoin(Bid)
+        .group_by(Project.id)
+        .order_by(func.max(Bid.amount).desc())
+    )
+
+    if selected_category:
+        query = query.filter(Project.category == selected_category)
+
+    projects = query.all()
+
+    categories = db.session.query(Project.category).distinct().all()
+    categories = [c[0] for c in categories]
+
+    return render_template(
+        "leaderboard.html",
+        projects=projects,
+        categories=categories,
+        selected_category=selected_category,
+    )
 
 
 @leaderboard_bp.route("/add_bid/<int:project_id>", methods=["POST"])
