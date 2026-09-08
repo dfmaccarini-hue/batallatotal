@@ -163,13 +163,24 @@ def mp_notifications():
         external_ref = payment["external_reference"]
 
         if status == "approved":
-            # Caso: proyecto nuevo (external_ref con datos)
+            # Evitar duplicados: verificar si ya existe la puja con ese payment_id
+            existing_bid = Bid.query.filter_by(mp_payment_id=payment_id).first()
+            if existing_bid:
+                return "Bid already processed", 200
+
+            # Caso: proyecto nuevo (external_ref con datos empaquetados)
             if "|" in external_ref:
-                name, description, category = external_ref.split("|")
+                try:
+                    name, description, category = external_ref.split("|")
+                except ValueError:
+                    return "Invalid external_reference format", 400
+
+                # Crear proyecto
                 project = Project(name=name, description=description, category=category)
                 db.session.add(project)
                 db.session.commit()
 
+                # Crear puja vinculada
                 bid = Bid(
                     amount=amount,
                     project_id=project.id,
@@ -181,7 +192,11 @@ def mp_notifications():
 
             # Caso: puja sobre proyecto existente (external_ref = project_id)
             else:
-                project_id = int(external_ref)
+                try:
+                    project_id = int(external_ref)
+                except ValueError:
+                    return "Invalid project_id in external_reference", 400
+
                 bid = Bid(
                     amount=amount,
                     project_id=project_id,
@@ -192,3 +207,4 @@ def mp_notifications():
                 db.session.commit()
 
     return "OK", 200
+
