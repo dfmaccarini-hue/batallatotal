@@ -1,0 +1,17 @@
+<h2>Historial de pujas - {{ project.name }}</h2>
+<table>
+  <tr>
+    <th>ID Puja</th>
+    <th>Monto</th>
+    <th>Estado</th>
+    <th>MP Payment ID</th>
+  </tr>
+  {% for bid in bids %}
+  <tr>
+    <td>{{ bid.id }}</td>
+    <td>{{ bid.amount }}</td>
+    <td>{{ bid.mp_status }}</td>
+    <td>{{ bid.mp_payment_id }}</td>
+  </tr>
+  {% endfor %}
+</table>

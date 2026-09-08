@@ -1,7 +1,7 @@
 import os
 from flask import Blueprint, render_template, request
 from app.models import Project, Bid
-from app import db, mp_sdk   # 👈 usamos la instancia global
+from app import db, mp_sdk   
 from sqlalchemy import func
 
 leaderboard_bp = Blueprint("leaderboard", __name__)
@@ -241,3 +241,14 @@ def failure():
 @leaderboard_bp.route("/pending")
 def pending():
     return render_template("pending.html")
+
+@leaderboard_bp.route("/history/<int:project_id>")
+def history(project_id):
+    bids = Bid.query.filter_by(project_id=project_id).order_by(Bid.id.desc()).all()
+    project = Project.query.get(project_id)
+    return render_template("history.html", bids=bids, project=project)
+
+@leaderboard_bp.route("/history_all")
+def history_all():
+    bids = Bid.query.order_by(Bid.id.desc()).all()
+    return render_template("history_all.html", bids=bids)

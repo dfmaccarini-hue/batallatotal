@@ -57,7 +57,7 @@
                 <th>Categoría</th>
                 <th>Descripción</th>
                 <th>Puja más alta</th>
-                <th>Agregar Puja</th>
+                <th>Acciones</th>
             </tr>
             {% for project, max_bid in projects %}
             <tr>
@@ -79,16 +79,27 @@
                     {% endif %}
                 </td>
                 <td>
-                    <!-- IMPORTANTE: usar 'leaderboard.add_bid' -->
-                    <form method="POST" action="{{ url_for('leaderboard.payment', project_id=project.id) }}">
+                    <!-- Botón agregar puja -->
+                    <form method="POST" action="{{ url_for('leaderboard.payment', project_id=project.id) }}" style="display:inline;">
                         <input type="number" name="amount" step="0.01" required>
                         <button type="submit">Agregar Puja</button>
                     </form>
-                    
+
+                    <!-- Botón historial por proyecto -->
+                    <a href="{{ url_for('leaderboard.history', project_id=project.id) }}">
+                        <button>Historial</button>
+                    </a>
                 </td>
             </tr>
             {% endfor %}
         </table>
+
+        <!-- Botón historial global -->
+        <div style="margin-top:20px;">
+            <a href="{{ url_for('leaderboard.history_all') }}">
+                <button>Historial Global</button>
+            </a>
+        </div>
     {% else %}
         <p>Aún no hay proyectos en el ranking.</p>
     {% endif %}
