@@ -56,10 +56,11 @@
                 <th>Proyecto</th>
                 <th>Categoría</th>
                 <th>Descripción</th>
+                <th>Total acumulado</th>
                 <th>Puja más alta</th>
                 <th>Acciones</th>
             </tr>
-            {% for project, max_bid in projects %}
+            {% for project, total_bids, max_bid in projects %}
             <tr>
                 <td>
                     {% if loop.index == 1 %}
@@ -71,6 +72,13 @@
                 <td><strong>{{ project.name }}</strong></td>
                 <td>{{ project.category }}</td>
                 <td>{{ project.description }}</td>
+                <td>
+                    {% if total_bids %}
+                        {{ total_bids }}
+                    {% else %}
+                        0
+                    {% endif %}
+                </td>
                 <td>
                     {% if max_bid %}
                         {{ max_bid }}

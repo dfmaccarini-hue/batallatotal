@@ -51,11 +51,16 @@ def index():
 
     selected_category = request.args.get("category")
 
+    # 👇 Cambiamos la consulta: sumamos todas las pujas y también mostramos la máxima
     query = (
-        db.session.query(Project, func.max(Bid.amount).label("max_bid"))
+        db.session.query(
+            Project,
+            func.sum(Bid.amount).label("total_bids"),
+            func.max(Bid.amount).label("max_bid")
+        )
         .outerjoin(Bid)
         .group_by(Project.id)
-        .order_by(func.max(Bid.amount).desc())
+        .order_by(func.sum(Bid.amount).desc())   # ranking por acumulado
     )
 
     if selected_category:
@@ -72,7 +77,6 @@ def index():
         categories=categories,
         selected_category=selected_category,
     )
-
 
 @leaderboard_bp.route("/add_bid/<int:project_id>", methods=["POST"])
 def add_bid(project_id):
