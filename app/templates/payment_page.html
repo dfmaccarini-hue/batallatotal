@@ -35,7 +35,17 @@
             max-width: 200px;
             margin-top: 10px;
         }
+        button:disabled {
+            background-color: #999;
+            cursor: not-allowed;
+        }
     </style>
+    <script>
+        function disableBtn(btn) {
+            btn.disabled = true;
+            btn.innerText = "Redirigiendo...";
+        }
+    </script>
 </head>
 <body>
     <h2>Pagar puja de {{ amount }} ARS</h2>
@@ -44,7 +54,10 @@
         <div class="option">
             <h3>Opción 1: Link de pago</h3>
             <p>Podés pagar directamente en Mercado Pago:</p>
-            <a href="{{ payment_url }}" target="_blank">Ir a Mercado Pago</a>
+            <!-- Botón que abre en la misma pestaña y se desactiva al clic -->
+            <button onclick="disableBtn(this); window.location.href='{{ payment_url }}'">
+                Ir a Mercado Pago
+            </button>
         </div>
 
         {% if qr_base64 %}
