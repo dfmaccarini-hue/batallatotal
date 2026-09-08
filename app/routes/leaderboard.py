@@ -1,3 +1,4 @@
+import os
 import mercadopago
 from flask import Blueprint, render_template, request, redirect, url_for
 from app.models import Project, Bid
@@ -6,62 +7,59 @@ from sqlalchemy import func
 
 leaderboard_bp = Blueprint("leaderboard", __name__)
 
-# Inicializar SDK con tu Access Token de pruebas
-sdk = mercadopago.SDK("MP_TOKEN")  # reemplazá con tu token
+# Inicializar SDK con variable de entorno
+sdk = mercadopago.SDK(os.getenv("MP_ACCESS_TOKEN"))
 
-@leaderboard_bp.route("/", methods=["GET", "POST"])
+# Switch automático para notification_url
+if os.getenv("FLASK_ENV") == "development":
+    # Usar ngrok/localtunnel en local
+    NOTIFICATION_URL = "https://abcd1234.ngrok.io/mp_notifications"
+else:
+    # Usar dominio de Render en producción
+    NOTIFICATION_URL = "https://batallatotal.onrender.com/mp_notifications"
+
+
+@leaderboard_bp.route("/", methods=["POST"])
 def index():
-    if request.method == "POST":
-        name = request.form["name"]
-        description = request.form["description"]
-        category = request.form["category"]
-        initial_bid = request.form.get("initial_bid")
+    name = request.form["name"]
+    description = request.form["description"]
+    category = request.form["category"]
+    initial_bid = request.form.get("initial_bid")
 
-        project = Project(name=name, description=description, category=category)
-        db.session.add(project)
-        db.session.commit()
+    # Empaquetar datos del proyecto en external_reference
+    external_ref = f"{name}|{description}|{category}"
 
-        if initial_bid and initial_bid.strip() != "":
-            bid = Bid(amount=float(initial_bid), project_id=project.id)
-            db.session.add(bid)
-            db.session.commit()
+    preference_data = {
+        "items": [
+            {
+                "title": f"Proyecto {name}",
+                "quantity": 1,
+                "currency_id": "ARS",
+                "unit_price": float(initial_bid),
+            }
+        ],
+        "external_reference": external_ref,
+        "notification_url": NOTIFICATION_URL,
+        "back_urls": {
+            "success": "https://batallatotal.onrender.com/success",
+            "failure": "https://batallatotal.onrender.com/failure",
+            "pending": "https://batallatotal.onrender.com/pending"
+        },
+        "auto_return": "approved"
+    }
 
-        return redirect(url_for("leaderboard.index"))
+    preference_response = sdk.preference().create(preference_data)
+    preference = preference_response["response"]
 
-    selected_category = request.args.get("category")
+    payment_url = preference.get("init_point")
 
-    query = (
-        db.session.query(Project, func.max(Bid.amount).label("max_bid"))
-        .outerjoin(Bid)
-        .group_by(Project.id)
-        .order_by(func.max(Bid.amount).desc())
-    )
+    return render_template("payment_page.html", amount=initial_bid, payment_url=payment_url)
 
-    if selected_category:
-        query = query.filter(Project.category == selected_category)
-
-    projects = query.all()
-
-    categories = db.session.query(Project.category).distinct().all()
-    categories = [c[0] for c in categories]
-
-    return render_template(
-        "leaderboard.html",
-        projects=projects,
-        categories=categories,
-        selected_category=selected_category,
-    )
 
 @leaderboard_bp.route("/add_bid/<int:project_id>", methods=["POST"])
 def add_bid(project_id):
     amount = float(request.form["amount"])
 
-    # Guardar la puja
-    bid = Bid(amount=amount, project_id=project_id)
-    db.session.add(bid)
-    db.session.commit()
-
-    # Crear preferencia
     preference_data = {
         "items": [
             {
@@ -70,20 +68,19 @@ def add_bid(project_id):
                 "currency_id": "ARS",
                 "unit_price": amount,
             }
-        ]
+        ],
+        "external_reference": str(project_id),
+        "notification_url": NOTIFICATION_URL
     }
 
     preference_response = sdk.preference().create(preference_data)
     preference = preference_response["response"]
 
-    # Manejo flexible: QR o link
     qr_code = None
-    payment_url = None
+    payment_url = preference.get("init_point")
 
     if "point_of_interaction" in preference:
         qr_code = preference["point_of_interaction"]["transaction_data"]["qr_code_base64"]
-    else:
-        payment_url = preference.get("init_point")
 
     return render_template(
         "payment_link.html",
@@ -91,29 +88,8 @@ def add_bid(project_id):
         payment_url=payment_url,
         amount=amount
     )
-@leaderboard_bp.route("/mp_notifications", methods=["POST"])
-def mp_notifications():
-    data = request.json
-    payment_id = data.get("data", {}).get("id")
 
-    if payment_id:
-        payment = sdk.payment().get(payment_id)["response"]
 
-        amount = payment["transaction_amount"]
-        project_id = int(payment["external_reference"])
-        status = payment["status"]  # aprobado, pendiente, rechazado
-
-        if status == "approved":
-            bid = Bid(
-                amount=amount,
-                project_id=project_id,
-                mp_payment_id=payment_id,
-                mp_status=status
-            )
-            db.session.add(bid)
-            db.session.commit()
-
-    return "OK", 200
 @leaderboard_bp.route("/payment/<int:project_id>", methods=["POST"])
 def payment(project_id):
     amount = request.form["amount"]
@@ -128,16 +104,15 @@ def payment(project_id):
             }
         ],
         "external_reference": str(project_id),
-        "notification_url": "https://tu-dominio.com/mp_notifications",
-        "purpose": "wallet_purchase"  # fuerza modo presencial
+        "notification_url": NOTIFICATION_URL
     }
 
     preference_response = sdk.preference().create(preference_data)
     preference = preference_response["response"]
 
     payment_url = preference.get("init_point")
-
     qr_base64 = None
+
     if "point_of_interaction" in preference:
         qr_base64 = preference["point_of_interaction"]["transaction_data"]["qr_code_base64"]
 
@@ -147,3 +122,47 @@ def payment(project_id):
         payment_url=payment_url,
         qr_base64=qr_base64
     )
+
+
+@leaderboard_bp.route("/mp_notifications", methods=["POST"])
+def mp_notifications():
+    data = request.json
+    payment_id = data.get("data", {}).get("id")
+
+    if payment_id:
+        payment = sdk.payment().get(payment_id)["response"]
+
+        amount = payment["transaction_amount"]
+        status = payment["status"]
+        external_ref = payment["external_reference"]
+
+        if status == "approved":
+            # Caso: proyecto nuevo (external_ref con datos)
+            if "|" in external_ref:
+                name, description, category = external_ref.split("|")
+                project = Project(name=name, description=description, category=category)
+                db.session.add(project)
+                db.session.commit()
+
+                bid = Bid(
+                    amount=amount,
+                    project_id=project.id,
+                    mp_payment_id=payment_id,
+                    mp_status=status
+                )
+                db.session.add(bid)
+                db.session.commit()
+
+            # Caso: puja sobre proyecto existente (external_ref = project_id)
+            else:
+                project_id = int(external_ref)
+                bid = Bid(
+                    amount=amount,
+                    project_id=project_id,
+                    mp_payment_id=payment_id,
+                    mp_status=status
+                )
+                db.session.add(bid)
+                db.session.commit()
+
+    return "OK", 200
