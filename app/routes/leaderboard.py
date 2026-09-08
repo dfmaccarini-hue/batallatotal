@@ -266,10 +266,18 @@ def history(project_id):
     project = Project.query.get_or_404(project_id)
     bids = Bid.query.filter_by(project_id=project_id).all()
 
-    # Ranking general ya lo tenés calculado en otra parte
-    # Supongamos que lo pasás como puesto_general
+    # Ranking general
+    general_query = (
+        db.session.query(Project.id, func.sum(Bid.amount).label("total_bids"))
+        .outerjoin(Bid)
+        .group_by(Project.id)
+        .order_by(func.sum(Bid.amount).desc())
+        .all()
+    )
+    general_ranking = {proj_id: idx+1 for idx, (proj_id, total) in enumerate(general_query)}
+    puesto_general = general_ranking.get(project.id)
 
-    # Ranking dentro de la categoría
+    # Ranking por categoría
     category_query = (
         db.session.query(Project.id, func.sum(Bid.amount).label("total_bids"))
         .outerjoin(Bid)
@@ -278,15 +286,15 @@ def history(project_id):
         .order_by(func.sum(Bid.amount).desc())
         .all()
     )
-
     category_ranking = {proj_id: idx+1 for idx, (proj_id, total) in enumerate(category_query)}
+    puesto_categoria = category_ranking.get(project.id)
 
     return render_template(
         "history.html",
         project=project,
         bids=bids,
-        puesto_general=puesto_general,  # 👈 ya lo tenés
-        puesto_categoria=category_ranking.get(project.id)  # 👈 nuevo
+        puesto_general=puesto_general,
+        puesto_categoria=puesto_categoria
     )
 
 @leaderboard_bp.route("/history_all")
