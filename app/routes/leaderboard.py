@@ -261,11 +261,33 @@ def failure():
 def pending():
     return render_template("pending.html")
 
-@leaderboard_bp.route("/history/<int:project_id>")
+@@leaderboard_bp.route("/history/<int:project_id>")
 def history(project_id):
-    bids = Bid.query.filter_by(project_id=project_id).order_by(Bid.id.desc()).all()
-    project = Project.query.get(project_id)
-    return render_template("history.html", bids=bids, project=project)
+    project = Project.query.get_or_404(project_id)
+    bids = Bid.query.filter_by(project_id=project_id).all()
+
+    # Ranking general ya lo tenés calculado en otra parte
+    # Supongamos que lo pasás como puesto_general
+
+    # Ranking dentro de la categoría
+    category_query = (
+        db.session.query(Project.id, func.sum(Bid.amount).label("total_bids"))
+        .outerjoin(Bid)
+        .filter(Project.category == project.category)
+        .group_by(Project.id)
+        .order_by(func.sum(Bid.amount).desc())
+        .all()
+    )
+
+    category_ranking = {proj_id: idx+1 for idx, (proj_id, total) in enumerate(category_query)}
+
+    return render_template(
+        "history.html",
+        project=project,
+        bids=bids,
+        puesto_general=puesto_general,  # 👈 ya lo tenés
+        puesto_categoria=category_ranking.get(project.id)  # 👈 nuevo
+    )
 
 @leaderboard_bp.route("/history_all")
 def history_all():
