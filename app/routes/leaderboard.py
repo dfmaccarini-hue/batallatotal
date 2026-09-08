@@ -96,7 +96,13 @@ def add_bid(project_id):
             }
         ],
         "external_reference": str(project_id),
-        "notification_url": NOTIFICATION_URL
+        "notification_url": NOTIFICATION_URL,
+        "back_urls": {
+            "success": "https://batallatotal.onrender.com/success",
+            "failure": "https://batallatotal.onrender.com/failure",
+            "pending": "https://batallatotal.onrender.com/pending"
+        },
+        "auto_return": "approved"
     }
 
     preference_response = sdk.preference().create(preference_data)
@@ -130,7 +136,13 @@ def payment(project_id):
             }
         ],
         "external_reference": str(project_id),
-        "notification_url": NOTIFICATION_URL
+        "notification_url": NOTIFICATION_URL,
+        "back_urls": {
+            "success": "https://batallatotal.onrender.com/success",
+            "failure": "https://batallatotal.onrender.com/failure",
+            "pending": "https://batallatotal.onrender.com/pending"
+        },
+        "auto_return": "approved"
     }
 
     preference_response = sdk.preference().create(preference_data)
@@ -207,4 +219,36 @@ def mp_notifications():
                 db.session.commit()
 
     return "OK", 200
+
+
+# Endpoints de retorno de Mercado Pago
+@leaderboard_bp.route("/success")
+def success():
+    external_ref = request.args.get("external_reference")
+    payment_id = request.args.get("payment_id")
+
+    project = None
+    bid = None
+
+    if external_ref and "|" in external_ref:
+        try:
+            name, description, category = external_ref.split("|")
+            project = {"name": name, "description": description, "category": category}
+        except ValueError:
+            project = None
+
+    if payment_id:
+        bid = Bid.query.filter_by(mp_payment_id=payment_id).first()
+
+    return render_template("success.html", project=project, bid=bid)
+
+
+@leaderboard_bp.route("/failure")
+def failure():
+    return render_template("failure.html")
+
+
+@leaderboard_bp.route("/pending")
+def pending():
+    return render_template("pending.html")
 
