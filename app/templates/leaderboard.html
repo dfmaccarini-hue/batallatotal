@@ -4,6 +4,18 @@
     <title>Leaderboard Outbid LATAM</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <style>
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.9em;
+            font-weight: bold;
+            color: white;
+        }
+        .gold { background-color: #FFD700; }
+        .silver { background-color: #C0C0C0; }
+        .bronze { background-color: #CD7F32; }
+        .normal { background-color: #0077cc; }
         .up { color: green; font-weight: bold; }
         .down { color: red; font-weight: bold; }
         .same { color: gray; }
@@ -69,10 +81,15 @@
             {% for project, total_bids, max_bid in projects %}
             <tr>
                 <td>
-                    {% if loop.index == 1 %}
-                        🏆 {{ loop.index }}
+                    {% set puesto = loop.index %}
+                    {% if puesto == 1 %}
+                        <span class="badge gold">#{{ puesto }}</span>
+                    {% elif puesto == 2 %}
+                        <span class="badge silver">#{{ puesto }}</span>
+                    {% elif puesto == 3 %}
+                        <span class="badge bronze">#{{ puesto }}</span>
                     {% else %}
-                        {{ loop.index }}
+                        <span class="badge normal">#{{ puesto }}</span>
                     {% endif %}
                 </td>
                 <td><strong>{{ project.name }}</strong></td>
