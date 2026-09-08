@@ -224,12 +224,27 @@ def success():
     project = None
     bid = None
 
-    if external_ref and "|" in external_ref:
-        try:
-            name, description, category = external_ref.split("|")
-            project = {"name": name, "description": description, "category": category}
-        except ValueError:
-            project = None
+    if external_ref:
+        if "|" in external_ref:
+            # Caso proyecto nuevo
+            try:
+                name, description, category = external_ref.split("|")
+                project = {"name": name, "description": description, "category": category}
+            except ValueError:
+                project = None
+        else:
+            # Caso puja sobre proyecto existente
+            try:
+                project_id = int(external_ref)
+                project_obj = Project.query.get(project_id)
+                if project_obj:
+                    project = {
+                        "name": project_obj.name,
+                        "description": project_obj.description,
+                        "category": project_obj.category
+                    }
+            except ValueError:
+                project = None
 
     if payment_id:
         bid = Bid.query.filter_by(mp_payment_id=payment_id).first()
