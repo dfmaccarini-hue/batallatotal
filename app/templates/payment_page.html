@@ -19,7 +19,7 @@
         h2 {
             text-align: center;
         }
-        a {
+        a, button {
             display: inline-block;
             margin-top: 10px;
             padding: 10px 15px;
@@ -27,8 +27,10 @@
             color: white;
             text-decoration: none;
             border-radius: 5px;
+            border: none;
+            cursor: pointer;
         }
-        a:hover {
+        a:hover, button:hover {
             background-color: #005fa3;
         }
         img {
@@ -44,18 +46,21 @@
         function disableBtn(btn) {
             btn.disabled = true;
             btn.innerText = "Redirigiendo...";
+            window.location.href = btn.getAttribute("data-url");
         }
     </script>
 </head>
 <body>
     <h2>Pagar puja de {{ amount }} ARS</h2>
+    <p><strong>Puesto proyectado en categoría:</strong> #{{ puesto_categoria }}</p>
+    <p><strong>Puesto proyectado en ranking general:</strong> #{{ puesto_general }}</p>
 
     <div class="container">
         <div class="option">
             <h3>Opción 1: Link de pago</h3>
             <p>Podés pagar directamente en Mercado Pago:</p>
             <!-- Botón que abre en la misma pestaña y se desactiva al clic -->
-            <button onclick="disableBtn(this); window.location.href='{{ payment_url }}'">
+            <button onclick="disableBtn(this)" data-url="{{ payment_url }}">
                 Ir a Mercado Pago
             </button>
         </div>
@@ -70,4 +75,5 @@
     </div>
 </body>
 </html>
+
 

@@ -19,7 +19,7 @@ def index():
         name = request.form["name"]
         description = request.form["description"]
         category = request.form["category"]
-        initial_bid = request.form.get("initial_bid")
+        initial_bid = float(request.form.get("initial_bid"))
 
         external_ref = f"{name}|{description}|{category}"
 
@@ -29,7 +29,7 @@ def index():
                     "title": f"Proyecto {name}",
                     "quantity": 1,
                     "currency_id": "ARS",
-                    "unit_price": float(initial_bid),
+                    "unit_price": initial_bid,
                 }
             ],
             "external_reference": external_ref,
@@ -47,11 +47,44 @@ def index():
 
         payment_url = preference.get("init_point")
 
-        return render_template("payment_page.html", amount=initial_bid, payment_url=payment_url)
+        # 🔹 Calcular puestos proyectados para proyecto nuevo
+        general_query = (
+            db.session.query(Project.id, func.sum(Bid.amount).label("total_bids"))
+            .outerjoin(Bid)
+            .group_by(Project.id)
+            .all()
+        )
+        ranking_general = sorted(
+            [(proj_id, total or 0) for proj_id, total in general_query] + [(None, initial_bid)],
+            key=lambda x: x[1],
+            reverse=True
+        )
+        puesto_general = len(ranking_general)  # nuevo proyecto queda último hasta aprobar
+
+        category_query = (
+            db.session.query(Project.id, func.sum(Bid.amount).label("total_bids"))
+            .outerjoin(Bid)
+            .filter(Project.category == category)
+            .group_by(Project.id)
+            .all()
+        )
+        ranking_categoria = sorted(
+            [(proj_id, total or 0) for proj_id, total in category_query] + [(None, initial_bid)],
+            key=lambda x: x[1],
+            reverse=True
+        )
+        puesto_categoria = len(ranking_categoria)
+
+        return render_template(
+            "payment_page.html",
+            amount=initial_bid,
+            payment_url=payment_url,
+            puesto_general=puesto_general,
+            puesto_categoria=puesto_categoria
+        )
 
     selected_category = request.args.get("category")
 
-    # 👇 Cambiamos la consulta: sumamos todas las pujas y también mostramos la máxima
     query = (
         db.session.query(
             Project,
@@ -110,17 +143,60 @@ def add_bid(project_id):
     if "point_of_interaction" in preference:
         qr_code = preference["point_of_interaction"]["transaction_data"]["qr_code_base64"]
 
+    # 🔹 Calcular puestos proyectados
+    project = Project.query.get(project_id)
+
+    total_actual = (
+        db.session.query(func.sum(Bid.amount))
+        .filter(Bid.project_id == project_id)
+        .scalar()
+    ) or 0
+    total_proyectado = total_actual + amount
+
+    # Ranking general
+    general_query = (
+        db.session.query(Project.id, func.sum(Bid.amount).label("total_bids"))
+        .outerjoin(Bid)
+        .group_by(Project.id)
+        .all()
+    )
+    ranking_general = sorted(
+        [(proj_id, total if proj_id != project_id else total_proyectado)
+         for proj_id, total in general_query],
+        key=lambda x: x[1],
+        reverse=True
+    )
+    puesto_general = {proj_id: idx+1 for idx, (proj_id, total) in enumerate(ranking_general)}.get(project_id)
+
+    # Ranking por categoría
+    category_query = (
+        db.session.query(Project.id, func.sum(Bid.amount).label("total_bids"))
+        .outerjoin(Bid)
+        .filter(Project.category == project.category)
+        .group_by(Project.id)
+        .all()
+    )
+    ranking_categoria = sorted(
+        [(proj_id, total if proj_id != project_id else total_proyectado)
+         for proj_id, total in category_query],
+        key=lambda x: x[1],
+        reverse=True
+    )
+    puesto_categoria = {proj_id: idx+1 for idx, (proj_id, total) in enumerate(ranking_categoria)}.get(project_id)
+
     return render_template(
         "payment_link.html",
         qr_code=qr_code,
         payment_url=payment_url,
-        amount=amount
+        amount=amount,
+        puesto_general=puesto_general,
+        puesto_categoria=puesto_categoria
     )
 
 
 @leaderboard_bp.route("/payment/<int:project_id>", methods=["POST"])
 def payment(project_id):
-    amount = request.form["amount"]
+    amount = float(request.form["amount"])
 
     preference_data = {
         "items": [
@@ -128,7 +204,7 @@ def payment(project_id):
                 "title": f"Puja Proyecto {project_id}",
                 "quantity": 1,
                 "currency_id": "ARS",
-                "unit_price": float(amount),
+                "unit_price": amount,
             }
         ],
         "external_reference": str(project_id),
@@ -150,11 +226,54 @@ def payment(project_id):
     if "point_of_interaction" in preference:
         qr_base64 = preference["point_of_interaction"]["transaction_data"]["qr_code_base64"]
 
+    # 🔹 Calcular puestos proyectados
+    project = Project.query.get(project_id)
+
+    total_actual = (
+        db.session.query(func.sum(Bid.amount))
+        .filter(Bid.project_id == project_id)
+        .scalar()
+    ) or 0
+    total_proyectado = total_actual + amount
+
+    # Ranking general
+    general_query = (
+        db.session.query(Project.id, func.sum(Bid.amount).label("total_bids"))
+        .outerjoin(Bid)
+        .group_by(Project.id)
+        .all()
+    )
+    ranking_general = sorted(
+        [(proj_id, total if proj_id != project_id else total_proyectado)
+         for proj_id, total in general_query],
+        key=lambda x: x[1],
+        reverse=True
+    )
+    puesto_general = {proj_id: idx+1 for idx, (proj_id, total) in enumerate(ranking_general)}.get(project_id)
+
+    # Ranking por categoría
+    category_query = (
+        db.session.query(Project.id, func.sum(Bid.amount).label("total_bids"))
+        .outerjoin(Bid)
+        .filter(Project.category == project.category)
+        .group_by(Project.id)
+        .all()
+    )
+    ranking_categoria = sorted(
+        [(proj_id, total if proj_id != project_id else total_proyectado)
+         for proj_id, total in category_query],
+        key=lambda x: x[1],
+        reverse=True
+    )
+    puesto_categoria = {proj_id: idx+1 for idx, (proj_id, total) in enumerate(ranking_categoria)}.get(project_id)
+
     return render_template(
         "payment_page.html",
         amount=amount,
         payment_url=payment_url,
-        qr_base64=qr_base64
+        qr_base64=qr_base64,
+        puesto_general=puesto_general,
+        puesto_categoria=puesto_categoria
     )
 
 
