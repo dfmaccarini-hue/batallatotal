@@ -261,7 +261,7 @@ def failure():
 def pending():
     return render_template("pending.html")
 
-@@leaderboard_bp.route("/history/<int:project_id>")
+@leaderboard_bp.route("/history/<int:project_id>")
 def history(project_id):
     project = Project.query.get_or_404(project_id)
     bids = Bid.query.filter_by(project_id=project_id).all()
