@@ -2,13 +2,13 @@ import os
 import mercadopago
 from flask import Blueprint, render_template, request, redirect, url_for
 from app.models import Project, Bid
-from app import db
+from app import db, sdk
 from sqlalchemy import func
 
 leaderboard_bp = Blueprint("leaderboard", __name__)
 
 # Inicializar SDK con variable de entorno
-sdk = mercadopago.SDK(os.getenv("MP_ACCESS_TOKEN"))
+# sdk = mercadopago.SDK(os.getenv("MP_ACCESS_TOKEN"))
 
 # Switch automático para notification_url
 if os.getenv("FLASK_ENV") == "development":
