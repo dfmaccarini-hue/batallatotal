@@ -54,16 +54,12 @@ def index():
             .all()
         )
 
-        # Simulamos el nuevo proyecto con su puja inicial
         ranking_general = sorted(
-            general_query + [(None, initial_bid)],
+            general_query + [(-1, initial_bid)],  # -1 como ID temporal
             key=lambda x: x[1] or 0,
             reverse=True
         )
-        puesto_general = next(
-            (idx+1 for idx, (proj_id, total) in enumerate(ranking_general) if proj_id is None),
-            len(ranking_general)
-        )
+        puesto_general = {proj_id: idx+1 for idx, (proj_id, total) in enumerate(ranking_general)}.get(-1)
 
         category_query = (
             db.session.query(Project.id, func.sum(Bid.amount).label("total_bids"))
@@ -74,14 +70,11 @@ def index():
         )
 
         ranking_categoria = sorted(
-            category_query + [(None, initial_bid)],
+            category_query + [(-1, initial_bid)],
             key=lambda x: x[1] or 0,
             reverse=True
         )
-        puesto_categoria = next(
-            (idx+1 for idx, (proj_id, total) in enumerate(ranking_categoria) if proj_id is None),
-            len(ranking_categoria)
-        )
+        puesto_categoria = {proj_id: idx+1 for idx, (proj_id, total) in enumerate(ranking_categoria)}.get(-1)
 
         return render_template(
             "payment_page.html",
@@ -112,11 +105,26 @@ def index():
     categories = db.session.query(Project.category).distinct().all()
     categories = [c[0] for c in categories]
 
+    # 🔹 Calcular movimientos (subió, bajó, igual)
+    movimientos = {}
+    for idx, (project, total_bids, max_bid) in enumerate(projects, start=1):
+        puesto_actual = idx
+        puesto_anterior = getattr(project, "last_rank", puesto_actual)
+        if puesto_actual < puesto_anterior:
+            movimientos[project.id] = "up"
+        elif puesto_actual > puesto_anterior:
+            movimientos[project.id] = "down"
+        else:
+            movimientos[project.id] = "same"
+        # actualizar el atributo para la próxima vez
+        project.last_rank = puesto_actual
+
     return render_template(
         "leaderboard.html",
         projects=projects,
         categories=categories,
         selected_category=selected_category,
+        movimientos=movimientos
     )
 
 @leaderboard_bp.route("/add_bid/<int:project_id>", methods=["POST"])

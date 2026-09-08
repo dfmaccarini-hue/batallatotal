@@ -3,6 +3,11 @@
 <head>
     <title>Leaderboard Outbid LATAM</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .up { color: green; font-weight: bold; }
+        .down { color: red; font-weight: bold; }
+        .same { color: gray; }
+    </style>
 </head>
 <body>
     <h1>Leaderboard Outbid LATAM</h1>
@@ -58,6 +63,7 @@
                 <th>Descripción</th>
                 <th>Total acumulado</th>
                 <th>Puja más alta</th>
+                <th>Movimiento</th>
                 <th>Acciones</th>
             </tr>
             {% for project, total_bids, max_bid in projects %}
@@ -72,18 +78,15 @@
                 <td><strong>{{ project.name }}</strong></td>
                 <td>{{ project.category }}</td>
                 <td>{{ project.description }}</td>
+                <td>{{ total_bids or 0 }}</td>
+                <td>{{ max_bid or "Sin pujas" }}</td>
                 <td>
-                    {% if total_bids %}
-                        {{ total_bids }}
+                    {% if movimientos[project.id] == "up" %}
+                        <span class="up">▲ Subió</span>
+                    {% elif movimientos[project.id] == "down" %}
+                        <span class="down">▼ Bajó</span>
                     {% else %}
-                        0
-                    {% endif %}
-                </td>
-                <td>
-                    {% if max_bid %}
-                        {{ max_bid }}
-                    {% else %}
-                        Sin pujas
+                        <span class="same">▬ Igual</span>
                     {% endif %}
                 </td>
                 <td>
