@@ -13,7 +13,7 @@ db = SQLAlchemy()
 migrate = Migrate()
 
 # Inicializar SDK de Mercado Pago
-sdk = mercadopago.SDK(os.getenv("MP_ACCESS_TOKEN"))
+mp_sdk = mercadopago.SDK(os.getenv("MP_ACCESS_TOKEN"))
 
 def create_app():
     app = Flask(__name__)

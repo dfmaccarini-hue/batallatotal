@@ -13,3 +13,4 @@ class Bid(db.Model):
     project_id = db.Column(db.Integer, db.ForeignKey("project.id"), nullable=False)
     mp_payment_id = db.Column(db.String(50), nullable=True)
     mp_status = db.Column(db.String(20), nullable=True)
+    

@@ -1,21 +1,15 @@
 import os
-import mercadopago
-from flask import Blueprint, render_template, request, redirect, url_for
+from flask import Blueprint, render_template, request
 from app.models import Project, Bid
-from app import db, sdk
+from app import db, mp_sdk   # 👈 usamos la instancia global
 from sqlalchemy import func
 
 leaderboard_bp = Blueprint("leaderboard", __name__)
 
-# Inicializar SDK con variable de entorno
-# sdk = mercadopago.SDK(os.getenv("MP_ACCESS_TOKEN"))
-
 # Switch automático para notification_url
 if os.getenv("FLASK_ENV") == "development":
-    # Usar ngrok/localtunnel en local
     NOTIFICATION_URL = "https://abcd1234.ngrok.io/mp_notifications"
 else:
-    # Usar dominio de Render en producción
     NOTIFICATION_URL = "https://batallatotal.onrender.com/mp_notifications"
 
 
@@ -27,7 +21,6 @@ def index():
         category = request.form["category"]
         initial_bid = request.form.get("initial_bid")
 
-        # Empaquetar datos del proyecto en external_reference
         external_ref = f"{name}|{description}|{category}"
 
         preference_data = {
@@ -49,14 +42,13 @@ def index():
             "auto_return": "approved"
         }
 
-        preference_response = sdk.preference().create(preference_data)
+        preference_response = mp_sdk.preference().create(preference_data)
         preference = preference_response["response"]
 
         payment_url = preference.get("init_point")
 
         return render_template("payment_page.html", amount=initial_bid, payment_url=payment_url)
 
-    # Caso GET: mostrar leaderboard
     selected_category = request.args.get("category")
 
     query = (
@@ -105,7 +97,7 @@ def add_bid(project_id):
         "auto_return": "approved"
     }
 
-    preference_response = sdk.preference().create(preference_data)
+    preference_response = mp_sdk.preference().create(preference_data)
     preference = preference_response["response"]
 
     qr_code = None
@@ -145,7 +137,7 @@ def payment(project_id):
         "auto_return": "approved"
     }
 
-    preference_response = sdk.preference().create(preference_data)
+    preference_response = mp_sdk.preference().create(preference_data)
     preference = preference_response["response"]
 
     payment_url = preference.get("init_point")
@@ -168,31 +160,27 @@ def mp_notifications():
     payment_id = data.get("data", {}).get("id")
 
     if payment_id:
-        payment = sdk.payment().get(payment_id)["response"]
+        payment = mp_sdk.payment().get(payment_id)["response"]
 
         amount = payment["transaction_amount"]
         status = payment["status"]
         external_ref = payment["external_reference"]
 
         if status == "approved":
-            # Evitar duplicados: verificar si ya existe la puja con ese payment_id
             existing_bid = Bid.query.filter_by(mp_payment_id=payment_id).first()
             if existing_bid:
                 return "Bid already processed", 200
 
-            # Caso: proyecto nuevo (external_ref con datos empaquetados)
             if "|" in external_ref:
                 try:
                     name, description, category = external_ref.split("|")
                 except ValueError:
                     return "Invalid external_reference format", 400
 
-                # Crear proyecto
                 project = Project(name=name, description=description, category=category)
                 db.session.add(project)
                 db.session.commit()
 
-                # Crear puja vinculada
                 bid = Bid(
                     amount=amount,
                     project_id=project.id,
@@ -202,16 +190,19 @@ def mp_notifications():
                 db.session.add(bid)
                 db.session.commit()
 
-            # Caso: puja sobre proyecto existente (external_ref = project_id)
             else:
                 try:
                     project_id = int(external_ref)
                 except ValueError:
                     return "Invalid project_id in external_reference", 400
 
+                project = Project.query.get(project_id)
+                if not project:
+                    return "Project not found", 404
+
                 bid = Bid(
                     amount=amount,
-                    project_id=project_id,
+                    project_id=project.id,
                     mp_payment_id=payment_id,
                     mp_status=status
                 )
@@ -221,7 +212,6 @@ def mp_notifications():
     return "OK", 200
 
 
-# Endpoints de retorno de Mercado Pago
 @leaderboard_bp.route("/success")
 def success():
     external_ref = request.args.get("external_reference")
@@ -251,4 +241,3 @@ def failure():
 @leaderboard_bp.route("/pending")
 def pending():
     return render_template("pending.html")
-
