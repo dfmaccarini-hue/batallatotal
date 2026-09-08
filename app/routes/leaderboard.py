@@ -44,7 +44,6 @@ def index():
 
         preference_response = mp_sdk.preference().create(preference_data)
         preference = preference_response["response"]
-
         payment_url = preference.get("init_point")
 
         # 🔹 Calcular puestos proyectados para proyecto nuevo
@@ -54,12 +53,17 @@ def index():
             .group_by(Project.id)
             .all()
         )
+
+        # Simulamos el nuevo proyecto con su puja inicial
         ranking_general = sorted(
-            [(proj_id, total or 0) for proj_id, total in general_query] + [(None, initial_bid)],
-            key=lambda x: x[1],
+            general_query + [(None, initial_bid)],
+            key=lambda x: x[1] or 0,
             reverse=True
         )
-        puesto_general = len(ranking_general)  # nuevo proyecto queda último hasta aprobar
+        puesto_general = next(
+            (idx+1 for idx, (proj_id, total) in enumerate(ranking_general) if proj_id is None),
+            len(ranking_general)
+        )
 
         category_query = (
             db.session.query(Project.id, func.sum(Bid.amount).label("total_bids"))
@@ -68,12 +72,16 @@ def index():
             .group_by(Project.id)
             .all()
         )
+
         ranking_categoria = sorted(
-            [(proj_id, total or 0) for proj_id, total in category_query] + [(None, initial_bid)],
-            key=lambda x: x[1],
+            category_query + [(None, initial_bid)],
+            key=lambda x: x[1] or 0,
             reverse=True
         )
-        puesto_categoria = len(ranking_categoria)
+        puesto_categoria = next(
+            (idx+1 for idx, (proj_id, total) in enumerate(ranking_categoria) if proj_id is None),
+            len(ranking_categoria)
+        )
 
         return render_template(
             "payment_page.html",
@@ -93,7 +101,7 @@ def index():
         )
         .outerjoin(Bid)
         .group_by(Project.id)
-        .order_by(func.sum(Bid.amount).desc())   # ranking por acumulado
+        .order_by(func.sum(Bid.amount).desc())
     )
 
     if selected_category:
