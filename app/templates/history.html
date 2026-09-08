@@ -1,17 +1,35 @@
-<h2>Historial de pujas - {{ project.name }}</h2>
-<table>
-  <tr>
-    <th>ID Puja</th>
-    <th>Monto</th>
-    <th>Estado</th>
-    <th>MP Payment ID</th>
-  </tr>
-  {% for bid in bids %}
-  <tr>
-    <td>{{ bid.id }}</td>
-    <td>{{ bid.amount }}</td>
-    <td>{{ bid.mp_status }}</td>
-    <td>{{ bid.mp_payment_id }}</td>
-  </tr>
-  {% endfor %}
-</table>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Historial de pujas - {{ project.name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <h1>Historial de pujas - {{ project.name }}</h1>
+    <p><strong>Descripción:</strong> {{ project.description }}</p>
+    <p><strong>Categoría:</strong> {{ project.category }}</p>
+
+    {% if bids %}
+        <table border="1" cellpadding="5">
+            <tr>
+                <th>ID Puja</th>
+                <th>Monto</th>
+                <th>Estado</th>
+                <th>MP Payment ID</th>
+            </tr>
+            {% for bid in bids %}
+            <tr>
+                <td>{{ bid.id }}</td>
+                <td>{{ bid.amount }}</td>
+                <td>{{ bid.mp_status }}</td>
+                <td>{{ bid.mp_payment_id }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+    {% else %}
+        <p>No hay pujas registradas para este proyecto.</p>
+    {% endif %}
+
+    <p><a href="{{ url_for('leaderboard.index') }}">Volver al leaderboard</a></p>
+</body>
+</html>

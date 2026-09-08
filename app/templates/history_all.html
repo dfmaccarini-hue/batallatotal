@@ -1,19 +1,35 @@
-<h2>Historial global de pujas</h2>
-<table>
-  <tr>
-    <th>ID Puja</th>
-    <th>Proyecto</th>
-    <th>Monto</th>
-    <th>Estado</th>
-    <th>MP Payment ID</th>
-  </tr>
-  {% for bid in bids %}
-  <tr>
-    <td>{{ bid.id }}</td>
-    <td>{{ bid.project_id }}</td>
-    <td>{{ bid.amount }}</td>
-    <td>{{ bid.mp_status }}</td>
-    <td>{{ bid.mp_payment_id }}</td>
-  </tr>
-  {% endfor %}
-</table>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Historial global de pujas</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <h1>Historial global de pujas</h1>
+
+    {% if bids %}
+        <table border="1" cellpadding="5">
+            <tr>
+                <th>ID Puja</th>
+                <th>Proyecto</th>
+                <th>Monto</th>
+                <th>Estado</th>
+                <th>MP Payment ID</th>
+            </tr>
+            {% for bid in bids %}
+            <tr>
+                <td>{{ bid.id }}</td>
+                <td>{{ bid.project_id }}</td>
+                <td>{{ bid.amount }}</td>
+                <td>{{ bid.mp_status }}</td>
+                <td>{{ bid.mp_payment_id }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+    {% else %}
+        <p>No hay pujas registradas aún.</p>
+    {% endif %}
+
+    <p><a href="{{ url_for('leaderboard.index') }}">Volver al leaderboard</a></p>
+</body>
+</html>
