@@ -42,6 +42,7 @@ table {
     border-collapse: collapse;
     margin-top: 20px;
     background: white;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
 }
 
 table th, table td {
@@ -59,6 +60,8 @@ tr:nth-child(1) {
     background-color: #ffeeba; /* Destaca al líder */
     font-weight: bold;
 }
+
+/* Barra de categorías */
 .categories-bar {
     margin: 20px 0;
 }
@@ -78,3 +81,22 @@ tr:nth-child(1) {
     color: white;
     font-weight: bold;
 }
+
+/* Badges de posición */
+.badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.9em;
+    font-weight: bold;
+    color: white;
+}
+.gold { background-color: #FFD700; }
+.silver { background-color: #C0C0C0; }
+.bronze { background-color: #CD7F32; }
+.normal { background-color: #007bff; }
+
+/* Flechas de movimiento */
+.up { color: green; font-weight: bold; }
+.down { color: red; font-weight: bold; }
+.same { color: gray; }
