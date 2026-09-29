@@ -3,7 +3,7 @@ Flask-Login
 Flask-Migrate
 SQLAlchemy
 psycopg2-binary
+psycopg[binary]
 gunicorn
 mercadopago
-psycopg2-binary
 python-dotenv
