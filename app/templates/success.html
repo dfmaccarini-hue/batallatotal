@@ -1,6 +1,45 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
+  <meta charset="UTF-8">
+  <title>Pago Exitoso</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Tipografías igual que leaderboard.html -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+  <!-- Mismo CSS que leaderboard.html -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='leaderboard-gaming.css') }}">
+</head>
+<body>
+  <div class="wrap">
+    <h1 class="success-title">¡PAGO EXITOSO!</h1>
+    <p class="subtitle">Tu puja fue aprobada correctamente</p>
+    <section class="panel" style="max-width:500px;margin:32px auto;text-align:center;padding: 32px;">
+      <div style="font-size: 64px; margin-bottom: 12px; color: #16a34a;">✅</div>
+      {% if project %}
+        <h2 style="margin-bottom: 16px;">{{ project.name }}</h2>
+        <p>
+          <strong>Categoría:</strong> {{ project.category }}<br>
+          <strong>Descripción:</strong> {{ project.description }}
+        </p>
+      {% endif %}
+      {% if bid %}
+        <p class="score" style="font-size:2.2rem; margin: 32px 0 0;">
+          Puja aprobada: <span style="color:#16a34a;font-weight:bold;">${{ bid.amount }}</span>
+        </p>
+      {% endif %}
+      <div class="footer-actions" style="margin-top: 32px;">
+        <a class="btn btn-ghost" href="{{ url_for('leaderboard.index') }}">
+          Volver al leaderboard
+        </a>
+      </div>
+    </section>
+  </div>
+</body>
+</html>
+<html lang="es">
+<head>
     <meta charset="UTF-8">
     <title>Pago exitoso</title>
     <!-- Bootstrap CSS -->

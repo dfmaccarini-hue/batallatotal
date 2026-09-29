@@ -37,5 +37,26 @@ def create_app():
     from app.routes.leaderboard import leaderboard_bp
     app.register_blueprint(leaderboard_bp)
 
+    with app.app_context():
+        db.create_all()
+        _ensure_columns()
+
     return app
+
+
+def _ensure_columns():
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(db.engine)
+    tables = inspector.get_table_names()
+    if "project" in tables:
+        project_cols = {c["name"] for c in inspector.get_columns("project")}
+        if "last_rank" not in project_cols:
+            db.session.execute(text("ALTER TABLE project ADD COLUMN last_rank INTEGER"))
+    if "bid" in tables:
+        bid_cols = {c["name"] for c in inspector.get_columns("bid")}
+        if "created_at" not in bid_cols:
+            col_type = "TIMESTAMP" if db.engine.dialect.name == "postgresql" else "DATETIME"
+            db.session.execute(text(f"ALTER TABLE bid ADD COLUMN created_at {col_type}"))
+    db.session.commit()
 

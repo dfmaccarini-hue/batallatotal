@@ -1,40 +1,29 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-    <title>Leaderboard Outbid LATAM</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <style>
-        .badge {
-            display: inline-block;
-            padding: 4px 8px;
-            border-radius: 12px;
-            font-size: 0.9em;
-            font-weight: bold;
-            color: white;
-        }
-        .gold { background-color: #FFD700; }
-        .silver { background-color: #C0C0C0; }
-        .bronze { background-color: #CD7F32; }
-        .normal { background-color: #0077cc; }
-        .up { color: green; font-weight: bold; }
-        .down { color: red; font-weight: bold; }
-        .same { color: gray; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Leaderboard Outbid LATAM</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='leaderboard-gaming.css') }}">
 </head>
 <body>
-    <h1>Leaderboard Outbid LATAM</h1>
+  <div class="wrap">
+    <h1>LEADERBOARD</h1>
+    <p class="subtitle">Outbid LATAM</p>
 
-    <!-- Formulario para agregar proyecto -->
-    <h2>Agregar Proyecto</h2>
-    <form method="POST">
-        <label>Nombre:</label>
-        <input type="text" name="name" required><br><br>
-
-        <label>Descripción:</label>
-        <textarea name="description"></textarea><br><br>
-
-        <label>Categoría:</label>
-        <select name="category" required>
+    <section class="panel">
+      <h2>Agregar Proyecto</h2>
+      <form method="POST" class="project-form">
+        <div>
+          <label>Nombre</label>
+          <input type="text" name="name" required>
+        </div>
+        <div>
+          <label>Categoría</label>
+          <select name="category" required>
             <option value="">-- Selecciona una categoría --</option>
             <option value="Energía">Energía</option>
             <option value="Tecnología">Tecnología</option>
@@ -42,94 +31,163 @@
             <option value="Educación">Educación</option>
             <option value="Transporte">Transporte</option>
             <option value="Otros">Otros</option>
-        </select><br><br>
+          </select>
+        </div>
+        <div class="full">
+          <label>Descripción</label>
+          <textarea name="description"></textarea>
+        </div>
+        <div>
+          <label>Puja inicial</label>
+          <input type="number" name="initial_bid" step="0.01">
+        </div>
+        <div>
+          <label>&nbsp;</label>
+          <button type="submit">Guardar Proyecto</button>
+        </div>
+      </form>
+    </section>
 
-        <label>Puja inicial:</label>
-        <input type="number" name="initial_bid" step="0.01"><br><br>
-
-        <button type="submit">Guardar Proyecto</button>
-    </form>
-
-    <hr>
-
-    <!-- Barra de categorías -->
-    <h2>Categorías</h2>
-    <div class="categories-bar">
+    <section class="panel">
+      <h2>Categorías</h2>
+      <div class="categories-bar">
         <a href="{{ url_for('leaderboard.index') }}" class="{% if not selected_category %}active{% endif %}">Todas</a>
         {% for cat in categories %}
-            <a href="{{ url_for('leaderboard.index', category=cat) }}" class="{% if selected_category == cat %}active{% endif %}">
-                {{ cat }}
-            </a>
+          <a href="{{ url_for('leaderboard.index', category=cat) }}" class="{% if selected_category == cat %}active{% endif %}">{{ cat }}</a>
         {% endfor %}
-    </div>
+      </div>
+    </section>
 
-    <hr>
-
-    <!-- Ranking estilo tabla -->
     {% if projects %}
-        <table>
-            <tr>
-                <th>Posición</th>
-                <th>Proyecto</th>
-                <th>Categoría</th>
-                <th>Descripción</th>
-                <th>Total acumulado</th>
-                <th>Puja más alta</th>
-                <th>Movimiento</th>
-                <th>Acciones</th>
-            </tr>
-            {% for project, total_bids, max_bid in projects %}
-            <tr>
-                <td>
-                    {% set puesto = loop.index %}
-                    {% if puesto == 1 %}
-                        <span class="badge gold">#{{ puesto }}</span>
-                    {% elif puesto == 2 %}
-                        <span class="badge silver">#{{ puesto }}</span>
-                    {% elif puesto == 3 %}
-                        <span class="badge bronze">#{{ puesto }}</span>
-                    {% else %}
-                        <span class="badge normal">#{{ puesto }}</span>
-                    {% endif %}
-                </td>
-                <td><strong>{{ project.name }}</strong></td>
-                <td>{{ project.category }}</td>
-                <td>{{ project.description }}</td>
-                <td>{{ total_bids or 0 }}</td>
-                <td>{{ max_bid or "Sin pujas" }}</td>
-                <td>
-                    {% if movimientos[project.id] == "up" %}
-                        <span class="up">▲ Subió</span>
-                    {% elif movimientos[project.id] == "down" %}
-                        <span class="down">▼ Bajó</span>
-                    {% else %}
-                        <span class="same">▬ Igual</span>
-                    {% endif %}
-                </td>
-                <td>
-                    <!-- Botón agregar puja -->
-                    <form method="POST" action="{{ url_for('leaderboard.payment', project_id=project.id) }}" style="display:inline;">
-                        <input type="number" name="amount" step="0.01" required>
-                        <button type="submit">Agregar Puja</button>
-                    </form>
+      {% set first = projects[0] if projects|length > 0 else none %}
+      {% set second = projects[1] if projects|length > 1 else none %}
+      {% set third = projects[2] if projects|length > 2 else none %}
 
-                    <!-- Botón historial por proyecto -->
-                    <a href="{{ url_for('leaderboard.history', project_id=project.id) }}">
-                        <button>Historial</button>
-                    </a>
-                </td>
-            </tr>
-            {% endfor %}
-        </table>
+      <section class="podium">
+        {% if second %}
+          {% set project, total_bids, max_bid = second %}
+          <article class="slot second">
+            <div class="medal">🥈</div>
+            <div class="rank">2DO PUESTO</div>
+            <div class="name">{{ project.name }}</div>
+            <div class="score">{{ "%.0f"|format(total_bids or 0) }} PTS</div>
+            <div class="meta">{{ project.category }} · {{ max_bid or "Sin pujas" }}</div>
+            <div class="meta">
+              {% if movimientos[project.id] == "up" %}<span class="up">▲ Subió</span>
+              {% elif movimientos[project.id] == "down" %}<span class="down">▼ Bajó</span>
+              {% else %}<span class="same">▬ Igual</span>{% endif %}
+            </div>
+            <div class="slot-actions">
+              <form method="POST" action="{{ url_for('leaderboard.payment', project_id=project.id) }}" class="bid-form">
+                <input type="number" name="amount" step="0.01" required>
+                <button type="submit">Pujar</button>
+              </form>
+              <a class="btn btn-ghost" href="{{ url_for('leaderboard.history', project_id=project.id) }}">Historial</a>
+            </div>
+            <div class="block"></div>
+          </article>
+        {% else %}
+          <article class="slot second">
+            <div class="medal">🥈</div>
+            <div class="rank">2DO PUESTO</div>
+            <div class="name">—</div>
+            <div class="score">0 PTS</div>
+            <div class="block"></div>
+          </article>
+        {% endif %}
 
-        <!-- Botón historial global -->
-        <div style="margin-top:20px;">
-            <a href="{{ url_for('leaderboard.history_all') }}">
-                <button>Historial Global</button>
-            </a>
-        </div>
+        {% if first %}
+          {% set project, total_bids, max_bid = first %}
+          <article class="slot first">
+            <div class="trophy">🏆</div>
+            <div class="rank">CAMPEÓN</div>
+            <div class="name">{{ project.name }}</div>
+            <div class="score">{{ "%.0f"|format(total_bids or 0) }} PTS</div>
+            <div class="meta">{{ project.category }} · {{ max_bid or "Sin pujas" }}</div>
+            <div class="meta">
+              {% if movimientos[project.id] == "up" %}<span class="up">▲ Subió</span>
+              {% elif movimientos[project.id] == "down" %}<span class="down">▼ Bajó</span>
+              {% else %}<span class="same">▬ Igual</span>{% endif %}
+            </div>
+            <div class="slot-actions">
+              <form method="POST" action="{{ url_for('leaderboard.payment', project_id=project.id) }}" class="bid-form">
+                <input type="number" name="amount" step="0.01" required>
+                <button type="submit">Pujar</button>
+              </form>
+              <a class="btn btn-ghost" href="{{ url_for('leaderboard.history', project_id=project.id) }}">Historial</a>
+            </div>
+            <div class="block"></div>
+          </article>
+        {% endif %}
+
+        {% if third %}
+          {% set project, total_bids, max_bid = third %}
+          <article class="slot third">
+            <div class="medal">🥉</div>
+            <div class="rank">3ER PUESTO</div>
+            <div class="name">{{ project.name }}</div>
+            <div class="score">{{ "%.0f"|format(total_bids or 0) }} PTS</div>
+            <div class="meta">{{ project.category }} · {{ max_bid or "Sin pujas" }}</div>
+            <div class="meta">
+              {% if movimientos[project.id] == "up" %}<span class="up">▲ Subió</span>
+              {% elif movimientos[project.id] == "down" %}<span class="down">▼ Bajó</span>
+              {% else %}<span class="same">▬ Igual</span>{% endif %}
+            </div>
+            <div class="slot-actions">
+              <form method="POST" action="{{ url_for('leaderboard.payment', project_id=project.id) }}" class="bid-form">
+                <input type="number" name="amount" step="0.01" required>
+                <button type="submit">Pujar</button>
+              </form>
+              <a class="btn btn-ghost" href="{{ url_for('leaderboard.history', project_id=project.id) }}">Historial</a>
+            </div>
+            <div class="block"></div>
+          </article>
+        {% else %}
+          <article class="slot third">
+            <div class="medal">🥉</div>
+            <div class="rank">3ER PUESTO</div>
+            <div class="name">—</div>
+            <div class="score">0 PTS</div>
+            <div class="block"></div>
+          </article>
+        {% endif %}
+      </section>
+
+      {% if projects|length > 3 %}
+        <section class="list">
+          {% for project, total_bids, max_bid in projects[3:] %}
+            <div class="row">
+              <span class="pos">#{{ "%02d"|format(loop.index + 3) }}</span>
+              <span>{{ project.name }}</span>
+              <span>{{ project.category }}</span>
+              <span>{{ "%.0f"|format(total_bids or 0) }} PTS</span>
+              <span>
+                {% if movimientos[project.id] == "up" %}
+                  <span class="up">▲</span>
+                {% elif movimientos[project.id] == "down" %}
+                  <span class="down">▼</span>
+                {% else %}
+                  <span class="same">▬</span>
+                {% endif %}
+              </span>
+              <span>
+                <form method="POST" action="{{ url_for('leaderboard.payment', project_id=project.id) }}" class="bid-form">
+                  <input type="number" name="amount" step="0.01" required>
+                  <button type="submit">Pujar</button>
+                </form>
+                <a class="btn btn-ghost" href="{{ url_for('leaderboard.history', project_id=project.id) }}">Historial</a>
+              </span>
+            </div>
+          {% endfor %}
+        </section>
+      {% endif %}
+
+      <div class="footer-actions">
+        <a class="btn btn-ghost" href="{{ url_for('leaderboard.history_all') }}">Historial Global</a>
+      </div>
     {% else %}
-        <p>Aún no hay proyectos en el ranking.</p>
+      <p class="empty-state">Aún no hay proyectos en el ranking.</p>
     {% endif %}
+  </div>
 </body>
 </html>

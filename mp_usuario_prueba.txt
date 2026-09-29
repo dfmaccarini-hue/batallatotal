@@ -13,3 +13,5 @@ CONTRAENA:sUEGMQAgsp
 Cod Verif:703228
 
 token prueba: APP_USR-464419533033644-090321-61b1e25bc11bc5735509b183cfdd4b9b-3664703228
+
+postgresql://bt_db_vm10_user:k0c39kehZdE59Z4aV2PUDZSvmW92AwBE@dpg-dae42umq1p3s73ft8os0-a.ohio-postgres.render.com/bt_db_vm10

@@ -1,17 +1,172 @@
-import os
+
 from flask import Blueprint, render_template, request
 from app.models import Project, Bid
 from app import db, mp_sdk   
 from sqlalchemy import func
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+# Inicializar variables
+BASE_URL = os.getenv("BASE_URL")
+NOTIFICATION_URL = os.getenv("NOTIFICATION_URL")
+
+# Mostrar en terminal
+print("🔧 BASE_URL:", BASE_URL)
+print("🔧 NOTIFICATION_URL:", NOTIFICATION_URL)
 
 leaderboard_bp = Blueprint("leaderboard", __name__)
 
-# Switch automático para notification_url
-if os.getenv("FLASK_ENV") == "development":
-    NOTIFICATION_URL = "https://abcd1234.ngrok.io/mp_notifications"
-else:
-    NOTIFICATION_URL = "https://batallatotal.onrender.com/mp_notifications"
 
+def _current_ranks():
+    rows = (
+        db.session.query(Project.id, func.sum(Bid.amount).label("total_bids"))
+        .outerjoin(Bid)
+        .group_by(Project.id)
+        .all()
+    )
+    ordered = sorted(rows, key=lambda x: x[1] or 0, reverse=True)
+    return {proj_id: idx + 1 for idx, (proj_id, _total) in enumerate(ordered)}
+
+
+def _extract_payment_ids():
+    payload = request.get_json(silent=True) or {}
+    payment_ids = []
+
+    data = payload.get("data") if isinstance(payload, dict) else None
+    if isinstance(data, dict) and data.get("id"):
+        payment_ids.append(str(data["id"]))
+
+    for key in ("id", "resource"):
+        value = payload.get(key) if isinstance(payload, dict) else None
+        if value:
+            value = str(value).rstrip("/").split("/")[-1]
+            if value.isdigit():
+                payment_ids.append(value)
+
+    for key in ("data.id", "id"):
+        value = request.args.get(key)
+        if value:
+            payment_ids.append(str(value))
+
+    topic = (
+        (payload.get("type") if isinstance(payload, dict) else None)
+        or (payload.get("topic") if isinstance(payload, dict) else None)
+        or request.args.get("topic")
+        or request.args.get("type")
+        or ""
+    )
+    topic = str(topic).lower()
+
+    unique_ids = list(dict.fromkeys(payment_ids))
+    return unique_ids, topic
+
+
+def _payments_from_merchant_order(order_id):
+    try:
+        order = mp_sdk.merchant_order().get(order_id)["response"]
+    except Exception as exc:
+        print("⚠️ No se pudo leer merchant_order:", order_id, exc)
+        return []
+
+    payment_ids = []
+    for payment in order.get("payments") or []:
+        payment_id = payment.get("id")
+        if payment_id:
+            payment_ids.append(str(payment_id))
+    return payment_ids
+
+
+def process_mp_payment(payment_id):
+    """Guarda proyecto/puja cuando Mercado Pago confirma un pago aprobado."""
+    if not payment_id:
+        return None, None
+
+    payment_id = str(payment_id)
+    existing_bid = Bid.query.filter_by(mp_payment_id=payment_id).first()
+    if existing_bid:
+        return existing_bid.project, existing_bid
+
+    try:
+        payment = mp_sdk.payment().get(payment_id)["response"]
+    except Exception as exc:
+        print("⚠️ Error consultando pago en MP:", payment_id, exc)
+        return None, None
+
+    if not payment or payment.get("id") is None:
+        print("⚠️ Pago no encontrado en MP:", payment_id, payment)
+        return None, None
+
+    status = payment.get("status")
+    amount = payment.get("transaction_amount")
+    external_ref = payment.get("external_reference") or ""
+    print(f"💳 MP payment {payment_id} status={status} ref={external_ref} amount={amount}")
+
+    if status != "approved":
+        return None, None
+
+    ranks_before = _current_ranks()
+
+    if "|" in external_ref:
+        try:
+            name, description, category = external_ref.split("|", 2)
+        except ValueError:
+            print("⚠️ external_reference inválida:", external_ref)
+            return None, None
+
+        project = Project(name=name, description=description, category=category)
+        db.session.add(project)
+        db.session.flush()
+    else:
+        try:
+            project_id = int(external_ref)
+        except (TypeError, ValueError):
+            print("⚠️ project_id inválido en external_reference:", external_ref)
+            return None, None
+
+        project = Project.query.get(project_id)
+        if not project:
+            print("⚠️ Proyecto no encontrado:", project_id)
+            return None, None
+
+    bid = Bid(
+        amount=amount,
+        project_id=project.id,
+        mp_payment_id=payment_id,
+        mp_status=status,
+    )
+    db.session.add(bid)
+    db.session.flush()
+
+    ranks_after = _current_ranks()
+    for ranked_project in Project.query.all():
+        previous = ranks_before.get(ranked_project.id)
+        if previous is None:
+            ranked_project.last_rank = (ranks_after.get(ranked_project.id) or 1) + 1
+        else:
+            ranked_project.last_rank = previous
+
+    try:
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        print("⚠️ Error guardando puja:", exc)
+        existing_bid = Bid.query.filter_by(mp_payment_id=payment_id).first()
+        if existing_bid:
+            return existing_bid.project, existing_bid
+        return None, None
+
+    print(f"✅ Puja guardada: project={project.id} amount={amount} payment={payment_id}")
+    return project, bid
+
+# Switch automático para notification_url
+#if os.getenv("FLASK_ENV") == "development":
+#NOTIFICATION_URL = "https://abcd1234.ngrok.io/mp_notifications"
+#BASE_URL="https://192.168.33.48:5001"
+#print(f"NOTIFICATION_URL = {NOTIFICATION_URL}")
+#else:
+#    NOTIFICATION_URL = "https://batallatotal.onrender.com/mp_notifications"
+#    BASE_URL="https://batallatotal.onrender.com"
 
 @leaderboard_bp.route("/", methods=["GET", "POST"])
 def index():
@@ -35,9 +190,9 @@ def index():
             "external_reference": external_ref,
             "notification_url": NOTIFICATION_URL,
             "back_urls": {
-                "success": "https://batallatotal.onrender.com/success",
-                "failure": "https://batallatotal.onrender.com/failure",
-                "pending": "https://batallatotal.onrender.com/pending"
+                "success": f"{BASE_URL}/success",
+                "failure": f"{BASE_URL}/failure",
+                "pending": f"{BASE_URL}/pending"
             },
             "auto_return": "approved"
         }
@@ -109,15 +264,13 @@ def index():
     movimientos = {}
     for idx, (project, total_bids, max_bid) in enumerate(projects, start=1):
         puesto_actual = idx
-        puesto_anterior = getattr(project, "last_rank", puesto_actual)
+        puesto_anterior = project.last_rank if project.last_rank is not None else puesto_actual
         if puesto_actual < puesto_anterior:
             movimientos[project.id] = "up"
         elif puesto_actual > puesto_anterior:
             movimientos[project.id] = "down"
         else:
             movimientos[project.id] = "same"
-        # actualizar el atributo para la próxima vez
-        project.last_rank = puesto_actual
 
     return render_template(
         "leaderboard.html",
@@ -143,9 +296,9 @@ def add_bid(project_id):
         "external_reference": str(project_id),
         "notification_url": NOTIFICATION_URL,
         "back_urls": {
-            "success": "https://batallatotal.onrender.com/success",
-            "failure": "https://batallatotal.onrender.com/failure",
-            "pending": "https://batallatotal.onrender.com/pending"
+            "success": f"{BASE_URL}/success",
+            "failure": f"{BASE_URL}/failure",
+            "pending": f"{BASE_URL}/pending"
         },
         "auto_return": "approved"
     }
@@ -226,9 +379,9 @@ def payment(project_id):
         "external_reference": str(project_id),
         "notification_url": NOTIFICATION_URL,
         "back_urls": {
-            "success": "https://batallatotal.onrender.com/success",
-            "failure": "https://batallatotal.onrender.com/failure",
-            "pending": "https://batallatotal.onrender.com/pending"
+            "success": f"{BASE_URL}/success",
+            "failure": f"{BASE_URL}/failure",
+            "pending": f"{BASE_URL}/pending"
         },
         "auto_return": "approved"
     }
@@ -293,96 +446,54 @@ def payment(project_id):
     )
 
 
-@leaderboard_bp.route("/mp_notifications", methods=["POST"])
+@leaderboard_bp.route("/mp_notifications", methods=["GET", "POST"])
 def mp_notifications():
-    data = request.json
-    payment_id = data.get("data", {}).get("id")
+    payment_ids, topic = _extract_payment_ids()
+    print("🔔 Notificación MP:", topic, payment_ids, request.args.to_dict(), request.get_json(silent=True))
 
-    if payment_id:
-        payment = mp_sdk.payment().get(payment_id)["response"]
+    if "merchant_order" in topic:
+        order_id = payment_ids[0] if payment_ids else request.args.get("id")
+        payment_ids = _payments_from_merchant_order(order_id)
 
-        amount = payment["transaction_amount"]
-        status = payment["status"]
-        external_ref = payment["external_reference"]
-
-        if status == "approved":
-            existing_bid = Bid.query.filter_by(mp_payment_id=payment_id).first()
-            if existing_bid:
-                return "Bid already processed", 200
-
-            if "|" in external_ref:
-                try:
-                    name, description, category = external_ref.split("|")
-                except ValueError:
-                    return "Invalid external_reference format", 400
-
-                project = Project(name=name, description=description, category=category)
-                db.session.add(project)
-                db.session.commit()
-
-                bid = Bid(
-                    amount=amount,
-                    project_id=project.id,
-                    mp_payment_id=payment_id,
-                    mp_status=status
-                )
-                db.session.add(bid)
-                db.session.commit()
-
-            else:
-                try:
-                    project_id = int(external_ref)
-                except ValueError:
-                    return "Invalid project_id in external_reference", 400
-
-                project = Project.query.get(project_id)
-                if not project:
-                    return "Project not found", 404
-
-                bid = Bid(
-                    amount=amount,
-                    project_id=project.id,
-                    mp_payment_id=payment_id,
-                    mp_status=status
-                )
-                db.session.add(bid)
-                db.session.commit()
+    for payment_id in payment_ids:
+        process_mp_payment(payment_id)
 
     return "OK", 200
 
 
 @leaderboard_bp.route("/success")
 def success():
+    payment_id = request.args.get("payment_id") or request.args.get("collection_id")
+    merchant_order_id = request.args.get("merchant_order_id")
     external_ref = request.args.get("external_reference")
-    payment_id = request.args.get("payment_id")
+    print("🏁 Success MP:", dict(request.args))
 
     project = None
     bid = None
 
-    if external_ref:
+    if payment_id:
+        project, bid = process_mp_payment(payment_id)
+
+    if not bid and merchant_order_id:
+        for extra_payment_id in _payments_from_merchant_order(merchant_order_id):
+            project, bid = process_mp_payment(extra_payment_id)
+            if bid:
+                break
+
+    if not project and external_ref:
         if "|" in external_ref:
-            # Caso proyecto nuevo
             try:
-                name, description, category = external_ref.split("|")
+                name, description, category = external_ref.split("|", 2)
                 project = {"name": name, "description": description, "category": category}
             except ValueError:
                 project = None
         else:
-            # Caso puja sobre proyecto existente
             try:
-                project_id = int(external_ref)
-                project_obj = Project.query.get(project_id)
+                project_obj = Project.query.get(int(external_ref))
                 if project_obj:
-                    project = {
-                        "name": project_obj.name,
-                        "description": project_obj.description,
-                        "category": project_obj.category
-                    }
+                    project = project_obj
             except ValueError:
                 project = None
-
-    if payment_id:
-        bid = Bid.query.filter_by(mp_payment_id=payment_id).first()
 
     return render_template("success.html", project=project, bid=bid)
 

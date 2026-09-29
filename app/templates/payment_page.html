@@ -1,4 +1,44 @@
 <!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pago de Puja</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='leaderboard-gaming.css') }}">
+</head>
+<body>
+  <div class="wrap">
+    <h1>PAGO DE PUJA</h1>
+    <p class="subtitle">Selecciona tu método de pago</p>
+    <section class="panel" style="display: flex; justify-content: space-around;">
+      <div class="option" style="width:40%; border: 1px solid #ccc; padding: 24px; border-radius: 10px; background: #fafcff;">
+        <h2>Mercado Pago</h2>
+        {% if mp_init %}
+          <form method="POST" action="{{ mp_init }}">
+            <button type="submit">Proceder con Mercado Pago</button>
+          </form>
+        {% else %}
+          <p>No disponible por el momento.</p>
+        {% endif %}
+        <img src="{{ url_for('static', filename='mercadopago.png') }}" alt="Mercado Pago" style="max-width:160px; margin-top:16px;">
+      </div>
+      <div class="option" style="width:40%; border: 1px solid #ccc; padding: 24px; border-radius: 10px; background: #fafcff;">
+        <h2>Pagar Manualmente</h2>
+        <p>Si prefieres realizar tu pago manualmente, contacta a nuestro equipo o realiza la transferencia bancaria y envía el comprobante.</p>
+        <a href="mailto:pagos@example.com" class="btn btn-ghost">Contactar</a>
+        <img src="{{ url_for('static', filename='manual-payment.png') }}" alt="Pago Manual" style="max-width:160px; margin-top:16px;">
+      </div>
+    </section>
+    <div class="footer-actions" style="text-align: center; margin-top: 32px;">
+      <a class="btn btn-ghost" href="{{ url_for('leaderboard.index') }}">Volver al leaderboard</a>
+    </div>
+  </div>
+</body>
+</html>
+<html lang="es">
 <html>
 <head>
     <title>Pago de Puja</title>
